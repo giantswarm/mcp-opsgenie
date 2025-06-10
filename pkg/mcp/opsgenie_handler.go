@@ -22,69 +22,98 @@ const listAlertQueryDescription = `Search query for filtering alerts.
 
 You can search using field:value combinations with most alert fields:
 
-Field | Description
--------------------
-createdAt | Unix timestamp (ms) or DD-MM-YYYY. e.g. createdAt:1470394841148, createdAt:15-05-2020
-lastOccurredAt, snoozedUntil | Unix timestamps in ms
-alertId | id of the alert, e.g. b9a2fb13-1b76-4b41-be28-eed2c61978fa
-tinyId | Short internal ID (not recommended)
-alias, count, message, description, source, entity, status, owner, acknowledgedBy, closedBy, recipients | Use exact strings. Status can be open or closed; boolean fields: isSeen, acknowledged, snoozed
-teams, integration.name, integration.type, tag, actions | Filter by team names, integration details, tags, etc
-details.key, details.value | Nested details; e.g. details.key:Impact
+| Field | Example Value | Description |
+|-------|---------------|-------------|
+| createdAt | 1470394841148 | Unix timestamp in milliseconds (Fri, 05 Aug 2016 11:00:41.148 GMT) |
+| createdAt | 15-05-2020 | DD-MM-YYYY format |
+| lastOccurredAt | 1470394841148 | Unix timestamp in milliseconds |
+| snoozedUntil | 1470394841148 | Unix timestamp in milliseconds |
+| alertId | b9a2fb13-1b76-4b41-be28-eed2c61978fa | Full alert ID |
+| tinyId | 28 | Short ID (not recommended, it rolls) |
+| alias | host_down | Alert alias |
+| count | 5 | Number of alert occurrences |
+| message | "Server apollo average" | Alert message text |
+| description | "Monitoring tool is reporting..." | Alert description |
+| source | john.smith@opsgenie.com | Alert source |
+| entity | entity1 | Related entity |
+| status | open | Alert status (open or closed) |
+| owner | john.smith@opsgenie.com | Alert owner username |
+| acknowledgedBy | john.smith@opsgenie.com | Who acknowledged the alert |
+| closedBy | john.smith@opsgenie.com | Who closed the alert |
+| recipients | john.smith@opsgenie.com | Alert recipients |
+| isSeen | true | Whether alert has been seen (true/false) |
+| acknowledged | true | Whether alert is acknowledged (true/false) |
+| snoozed | false | Whether alert is snoozed (true/false) |
+| teams | team1 | Team name |
+| integration.name | "API Integration" | Integration name |
+| integration.type | API | Integration type |
+| tag | EC2 | Alert tag |
+| actions | start | Available actions |
+| details.key | Impact | Custom detail key |
+| details.value | External | Custom detail value |
 
-## Condition operators
+## Query Operators
 
-Use relational operators for numeric/timestamp fields.
+**Comparison Operators (for numeric/timestamp fields):**
+- Greater than: count > 5
+- Less than: count < 10
+- Greater than or equal: count >= 3
+- Less than or equal: count <= 4
+- Less than timestamp: lastOccurredAt < 1470394841148
 
-Examples:
+**Logical Operators:**
+- AND: message:(error AND critical)
+- OR: message:(error OR warning)
+- NOT: NOT status:closed
+- Parentheses for grouping: (message:error OR description:critical) AND status:open
 
-- count > 5
-- count <= 4
-- lastOccurredAt < 1470394841148
+**Complex Query Examples:**
+- Multiple conditions: message:error AND count >= 3
+- Grouped conditions: (message:error OR message:warning) AND status:open
+- Status with count: status:open AND (count >= 3 OR entity:database)
+- Negation: NOT message:test AND status:open
 
-## Logical operators
+## Wildcards
 
-Combine conditions using AND, OR, and parentheses.
+**Rules:**
+- Use * only at the END of words
+- Works for: message:error* (matches "error", "errors", "error123")
+- Doesn't work for: message:*error or message:err*or
+- Not supported for: teams, users (use full names)
 
-Examples:
+**Examples:**
+- message:database* (matches "database", "databases", "database_error")
+- source:app* (matches "app1", "application", "app_server")
 
-- message:(lorem OR ipsum)
-- description:(lorem AND ipsum)
-- message:lorem AND count >= 3
-- (message:(lorem OR ipsum)) AND count >= 3
-- status:open AND (count >= 3 OR entity:lipsum)
+## Null Value Queries
 
-Negate with NOT.
+**Check for empty/missing fields:**
+- owner:null (alerts without owner)
+- teams is null (no teams assigned)
+- details.key is not null (has custom details)
+- tag !: null (has at least one tag)
 
-Examples:
+**Supported null check fields:**
+source, entity, tag, actions, owner, teams, acknowledgedBy, closedBy, recipients, details.key, details.value, integration.name, integration.type
 
-- NOT message:lorem
-- NOT status:open
+## Common Query Patterns
 
-## Wildcards (*)
+**Find open alerts:** status:open
+**Find high-priority alerts:** message:(critical OR high OR urgent)
+**Find unassigned alerts:** owner:null AND status:open
+**Find recent alerts:** createdAt > 1640995200000
+**Find alerts by team:** teams:infrastructure
+**Find alerts with tags:** tag !: null
+**Find alerts without acknowledgment:** acknowledgedBy:null AND status:open
 
-Use * only at the end of a word:
+## Tips for AI Usage
 
-message: lorem* matches words beginning with "lorem" ("Lorem ipsum", "Lorem123"), but not within words ("dolorlorem")
-
-Wildcards are not supported for teams and users — use full names
-
-## Null queries
-
-Check for presence or absence of fields:
-
-Supported fields: source, entity, tag, actions, owner, teams, acknowledgedBy, closedBy, recipients, details.key, details.value, integration.name, integration.type.
-
-Examples:
-
-- owner:null — alerts without an owner
-- teams is null — no teams assigned
-- details.key is not null — alerts with details.key set
-- tag !: null — alerts with a tag
-
-## Tip
-
-Combine any of the above to fine-tune your alert search queries.`
+1. Always use exact field names as listed above
+2. Use quotes for multi-word values: message:"database connection error"
+3. Combine multiple conditions with AND/OR for precise filtering
+4. Use parentheses to group complex conditions
+5. Remember that wildcards only work at the end of words
+6. Status field only accepts "open" or "closed" as values`
 
 // opsgenieHandler handles MCP tool requests for OpsGenie operations.
 // It encapsulates the OpsGenie alert client and provides methods to interact with alerts.
