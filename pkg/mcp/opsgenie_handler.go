@@ -113,7 +113,7 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 		alertClient: alertClient,
 	}
 
-	// Define the list_alerts tool with comprehensive documentation
+	// Define the list_alerts tooListAlertsmprehensive documentation
 	tool := mcp.NewTool("list_alerts",
 		mcp.WithDescription("Retrieve a list of alerts from OpsGenie"),
 		mcp.WithString("query",
@@ -122,12 +122,12 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 	)
 
 	// Register the tool with the MCP server
-	s.AddTool(tool, handler.GetAlerts)
+	s.AddTool(tool, handler.ListAlerts)
 
 	return nil
 }
 
-// GetAlerts retrieves alerts from OpsGenie based on the provided search query.
+// ListAlerts retrieves alerts from OpsGenie based on the provided search query.
 // This method implements the MCP tool handler interface for the 'list_alerts' tool.
 //
 // Parameters:
@@ -138,12 +138,12 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 //   - A CallToolResult containing the serialized alerts data on success
 //   - A CallToolResult with error information on failure
 //   - An error is only returned for internal MCP framework issues (always nil in this implementation)
-func (h *opsgenieHandler) GetAlerts(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *opsgenieHandler) ListAlerts(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Extract the query parameter (defaults to empty string if not provided)
 	query := request.GetString("query", "")
 
 	// Fetch alerts from OpsGenie using the provided query
-	alerts, err := h.alertClient.GetAlerts(ctx, query)
+	alerts, err := h.alertClient.ListAlerts(ctx, query)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to retrieve alerts from OpsGenie: %v", err)), nil
 	}

@@ -60,7 +60,7 @@ func NewAlertClient(apiUrl, envVar string) (*AlertClient, error) {
 	return a, nil
 }
 
-// GetAlerts retrieves alerts from OpsGenie based on the provided query string.
+// ListAlerts retrieves alerts from OpsGenie based on the provided query string.
 // The method handles pagination automatically, fetching all matching alerts up to the maximum limit.
 //
 // The query parameter supports OpsGenie's query syntax for filtering alerts.
@@ -75,7 +75,7 @@ func NewAlertClient(apiUrl, envVar string) (*AlertClient, error) {
 // Returns:
 //   - []alert.Alert: A slice of alerts matching the query criteria
 //   - error: An error if the API request fails or if the context is cancelled
-func (a *AlertClient) GetAlerts(ctx context.Context, query string) ([]alert.Alert, error) {
+func (a *AlertClient) ListAlerts(ctx context.Context, query string) ([]alert.Alert, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context cannot be nil")
 	}
