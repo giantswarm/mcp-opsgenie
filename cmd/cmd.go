@@ -16,11 +16,11 @@ access to OpsGenie. This server is designed to be used with the MCP framework.`,
 }
 
 var (
-	logFileName = ""
+	logFile = ""
 )
 
 func init() {
-	cmd.Flags().StringVar(&logFileName, "log-file", "", "File to write logs to (default is stdout)")
+	cmd.Flags().StringVar(&logFile, "log-file", "", "File to write logs to (log disabled by default)")
 
 }
 
@@ -33,17 +33,18 @@ func Execute() {
 }
 
 func runner(c *cobra.Command, args []string) (err error) {
-	logFile := os.Stdout
+	logger := slog.DiscardHandler
 
-	if logFileName != "" {
-		logFile, err = os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if logFile != "" {
+		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
-		defer logFile.Close()
+		defer file.Close()
+		logger = slog.NewTextHandler(file, nil)
 	}
 
-	slog.SetDefault(slog.New(slog.NewTextHandler(logFile, nil)))
+	slog.SetDefault(slog.New(logger))
 	slog.Info("starting mcp-opsgenie server")
 
 	return nil
