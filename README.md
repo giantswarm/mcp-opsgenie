@@ -1,27 +1,157 @@
-# General Go template repository
+<div align="center">
 
-This is a general template repository containing some basic files every GitHub repo owned by Giant Swarm should have.
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/giantswarm/mcp-opsgenie/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/giantswarm/mcp-opsgenie/tree/main)
+[![GoDoc](https://pkg.go.dev/badge/github.com/giantswarm/mcp-opsgenie.svg)](https://pkg.go.dev/github.com/giantswarm/mcp-opsgenie)
 
-Note also these more specific repositories:
+<strong>OpsGenie MCP Server</strong>
 
-- [template-app](https://github.com/giantswarm/template-app)
-- [gitops-template](https://github.com/giantswarm/gitops-template)
-- [python-app-template](https://github.com/giantswarm/python-app-template)
+*A Model Context Protocol server that enables AI assistants to interact with OpsGenie alerts*
 
-## Creating a new repository
+</div>
 
-Please do not use the `Use this template` function in the GitHub web UI.
+## Overview
 
-Check out the according [handbook article](https://handbook.giantswarm.io/docs/dev-and-releng/repository/go/) for better instructions.
+The OpsGenie MCP Server is a [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol) server that provides AI assistants and other MCP clients with standardized access to OpsGenie's alert management system. This server acts as a bridge between AI tools and your OpsGenie instance, allowing for automated alert querying and management through natural language interactions.
 
-### Some suggestions for your README
+## Features
 
-After you have created your new repository, you may want to add some of these badges to the top of your README.
+- **Alert Querying**: Retrieve and filter OpsGenie alerts using powerful search queries
+- **Comprehensive Search**: Support for all OpsGenie alert fields and advanced search operators
+- **MCP Compliance**: Fully compatible with the Model Context Protocol standard
+- **Secure Authentication**: Uses OpsGenie API tokens for secure access
+- **Flexible Configuration**: Configurable API endpoints and logging options
 
-- **CircleCI:** After enabling builds for this repo via [this link](https://circleci.com/setup-project/gh/giantswarm/mcp-opsgenie), you can find badge code on [this page](https://app.circleci.com/settings/project/github/giantswarm/mcp-opsgenie/status-badges).
+## Prerequisites
 
-- **Go reference:** use [this helper](https://pkg.go.dev/badge/) to create the markdown code.
+- Go 1.24.2 or later
+- An OpsGenie API token with appropriate permissions
 
-- **Go report card:** enter the module name on the [front page](https://goreportcard.com/) and hit "Generate report". Then use this markdown code for your badge: `[![Go report card](https://goreportcard.com/badge/github.com/giantswarm/mcp-opsgenie)](https://goreportcard.com/report/github.com/giantswarm/mcp-opsgenie)`
+## Installation
 
-- **Sourcegraph "used by N projects" badge**: for public Go repos only: `[![Sourcegraph](https://sourcegraph.com/github.com/giantswarm/mcp-opsgenie/-/badge.svg)](https://sourcegraph.com/github.com/giantswarm/mcp-opsgenie)`
+### Building from Source
+
+```bash
+git clone https://github.com/giantswarm/mcp-opsgenie.git
+cd mcp-opsgenie
+go build -o mcp-opsgenie
+```
+
+### Using Go Install
+
+```bash
+go install github.com/giantswarm/mcp-opsgenie@latest
+```
+
+## Configuration
+
+### Environment Variables
+
+Set your OpsGenie API token as an environment variable:
+
+```bash
+export OPSGENIE_TOKEN="your-opsgenie-api-token-here"
+```
+
+## Usage
+
+### Basic Usage
+
+Start the MCP server with default settings:
+
+```bash
+./mcp-opsgenie
+```
+
+### Advanced Usage
+
+The server supports several command-line options:
+
+```bash
+./mcp-opsgenie --help
+
+MCP server providing access to OpsGenie alerts
+
+An MCP (Model Context Protocol) server that connects to OpsGenie's API.
+This server enables AI assistants and other MCP clients to interact with your OpsGenie
+instance through a standardized protocol.
+
+The server requires an OpsGenie API token to authenticate with the service.
+
+Usage:
+  mcp-opsgenie [flags]
+
+Flags:
+      --api-url string         Base URL for the OpsGenie API endpoint (default "https://api.opsgenie.com")
+  -h, --help                   help for mcp-opsgenie
+      --log-file string        Path to log file (logs is disabled if not specified)
+      --token-env-var string   Name of environment variable containing your OpsGenie API token (default "OPSGENIE_TOKEN")
+```
+
+### Custom Configuration Examples
+
+```bash
+# Use a custom API endpoint
+./mcp-opsgenie --api-url "https://api.eu.opsgenie.com"
+
+# Use a different environment variable for the token
+./mcp-opsgenie --token-env-var "CUSTOM_OPSGENIE_TOKEN"
+
+# Enable logging to a file
+./mcp-opsgenie --log-file "mcp-opsgenie.log"
+```
+
+## Available Tools
+
+### `list_alerts`
+
+Retrieve a list of alerts from OpsGenie using advanced search queries.
+
+**Parameters:**
+- `query` (optional): Search query for filtering alerts
+
+**Example Queries:**
+
+```
+# Get all open alerts
+status:open
+
+# Find critical alerts
+message:(critical OR high OR urgent)
+
+# Find unassigned alerts
+owner:null AND status:open
+
+# Find alerts from the last 24 hours (using timestamp)
+createdAt > 1640995200000
+
+# Find database-related alerts
+message:database* OR entity:database
+
+# Complex query with multiple conditions
+(message:error OR message:warning) AND status:open AND teams:infrastructure
+```
+
+For comprehensive query documentation, see the [OpsGenie Search Documentation](https://support.atlassian.com/opsgenie/docs/search-queries-for-alerts/).
+
+## Integration with AI Assistants
+
+This MCP server can be integrated with various AI assistants that support the Model Context Protocol:
+
+1. **Claude Desktop**: Add the server to your Claude Desktop configuration
+2. **Custom MCP Clients**: Use any MCP-compatible client to connect
+3. **Development Tools**: Integrate with IDEs and development environments that support MCP
+
+### Example MCP Client Configuration
+
+```json
+{
+  "servers": {
+    "opsgenie": {
+      "command": "/path/to/mcp-opsgenie",
+      "env": {
+        "OPSGENIE_TOKEN": "your-api-token-here"
+      }
+    }
+  }
+}
+```
