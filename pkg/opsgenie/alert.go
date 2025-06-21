@@ -5,6 +5,7 @@ package opsgenie
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -42,10 +43,13 @@ type AlertClient struct {
 //   - *AlertClient: A configured alert client ready for use
 //   - error: An error if the client creation fails or if the API key is missing
 func NewAlertClient(apiUrl, envVar string) (*AlertClient, error) {
+	logger := logrus.New()
+	logger.Out = io.Discard
+
 	config := &client.Config{
 		OpsGenieAPIURL: client.ApiUrl(apiUrl),
 		ApiKey:         os.Getenv(envVar),
-		Logger:         logrus.WithField("component", "opsgenie"),
+		Logger:         logger,
 	}
 
 	alertClient, err := alert.NewClient(config)
