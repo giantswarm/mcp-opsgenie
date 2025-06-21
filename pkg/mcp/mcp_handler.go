@@ -13,7 +13,8 @@ import (
 // opsgenieHandler handles MCP tool requests for OpsGenie operations.
 // It encapsulates the OpsGenie alert client and provides methods to interact with alerts.
 type opsgenieHandler struct {
-	alertClient *opsgenie.AlertClient
+	alertClient     *opsgenie.AlertClient
+	heartbeatClient *opsgenie.HeartbeatClient
 }
 
 // RegisterOpsGenieHandler registers the OpsGenie MCP tools with the provided MCP server.
@@ -32,12 +33,19 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 		return fmt.Errorf("failed to create OpsGenie alert client: %w", err)
 	}
 
+	heartbeatClient, err := opsgenie.NewHeartbeatClient(apiUrl, envVar)
+	if err != nil {
+		return fmt.Errorf("failed to create OpsGenie heartbeat client: %w", err)
+	}
+
 	// Initialize the handler with the alert client
 	handler := &opsgenieHandler{
-		alertClient: alertClient,
+		alertClient:     alertClient,
+		heartbeatClient: heartbeatClient,
 	}
 
 	handler.registerAlertTools(s)
+	handler.registerHeartbeatTools(s)
 
 	return nil
 }
