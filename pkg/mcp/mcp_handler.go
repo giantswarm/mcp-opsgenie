@@ -14,6 +14,7 @@ import (
 // It encapsulates the OpsGenie alert client and provides methods to interact with alerts.
 type opsgenieHandler struct {
 	alertClient *opsgenie.AlertClient
+	teamClient  *opsgenie.TeamClient
 }
 
 // RegisterOpsGenieHandler registers the OpsGenie MCP tools with the provided MCP server.
@@ -32,12 +33,19 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 		return fmt.Errorf("failed to create OpsGenie alert client: %w", err)
 	}
 
+	teamClient, err := opsgenie.NewTeamClient(apiUrl, envVar)
+	if err != nil {
+		return fmt.Errorf("failed to create OpsGenie team client: %w", err)
+	}
+
 	// Initialize the handler with the alert client
 	handler := &opsgenieHandler{
 		alertClient: alertClient,
+		teamClient:  teamClient,
 	}
 
 	handler.registerAlertTools(s)
+	handler.registerTeamTools(s)
 
 	return nil
 }
