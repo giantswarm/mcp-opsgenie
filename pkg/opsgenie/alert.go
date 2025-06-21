@@ -191,3 +191,45 @@ func (a *AlertClient) AcknowledgeAlert(ctx context.Context, id, user, note, sour
 
 	return result, nil
 }
+
+// UnacknowledgeAlert unacknowledges an alert in OpsGenie.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout control
+//   - id: The identifier of the alert to unacknowledge
+//   - user: Display name of the request owner
+//   - note: Additional note to add to the alert
+//   - source: Display name of the request source
+//
+// Returns:
+//   - *alert.RequestStatusResult: The result of the unacknowledgement operation
+//   - error: An error if the API request fails or the context is cancelled
+func (a *AlertClient) UnacknowledgeAlert(ctx context.Context, id, user, note, source string) (*alert.RequestStatusResult, error) {
+	slog.Info("unacknowledging alert", "id", id, "user", user, "source", source)
+
+	unackRequest := &alert.UnacknowledgeAlertRequest{
+		IdentifierValue: id,
+		IdentifierType:  alert.ALERTID,
+		User:            user,
+		Note:            note,
+		Source:          source,
+	}
+
+	response, err := a.Client.Unacknowledge(ctx, unackRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unacknowledge alert with ID %s: %w", id, err)
+	}
+
+	result, err := response.RetrieveStatus(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve status of unacknowledgement request: %w", err)
+	}
+
+	if !result.IsSuccess {
+		return nil, fmt.Errorf("failed to unacknowledge alert with ID %s: %s", id, result.Status)
+	}
+
+	slog.Info("unacknowledged alert", "id", id, "requestId", result.RequestId)
+
+	return result, nil
+}
