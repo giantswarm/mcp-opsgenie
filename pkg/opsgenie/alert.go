@@ -149,3 +149,45 @@ func (a *AlertClient) GetAlert(ctx context.Context, id string) (*alert.GetAlertR
 
 	return response, nil
 }
+
+// AcknowledgeAlert acknowledges an alert in OpsGenie.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout control
+//   - id: The identifier of the alert to acknowledge
+//   - user: Display name of the request owner
+//   - note: Additional note to add to the alert
+//   - source: Display name of the request source
+//
+// Returns:
+//   - *alert.AcknowledgeResult: The result of the acknowledgement operation
+//   - error: An error if the API request fails or the context is cancelled
+func (a *AlertClient) AcknowledgeAlert(ctx context.Context, id, user, note, source string) (*alert.RequestStatusResult, error) {
+	slog.Info("acknowledging alert", "id", id, "user", user, "source", source)
+
+	ackRequest := &alert.AcknowledgeAlertRequest{
+		IdentifierValue: id,
+		IdentifierType:  alert.ALERTID,
+		User:            user,
+		Note:            note,
+		Source:          source,
+	}
+
+	response, err := a.Client.Acknowledge(ctx, ackRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to acknowledge alert with ID %s: %w", id, err)
+	}
+
+	result, err := response.RetrieveStatus(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve status of acknowledgement request: %w", err)
+	}
+
+	if !result.IsSuccess {
+		return nil, fmt.Errorf("failed to acknowledge alert with ID %s: %s", id, result.Status)
+	}
+
+	slog.Info("acknowledged alert", "id", id, "requestId", result.RequestId)
+
+	return result, nil
+}

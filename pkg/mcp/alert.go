@@ -131,6 +131,24 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 		),
 	)
 	s.AddTool(getAlertTool, h.GetAlert)
+
+	acknowledgeAlertTool := mcp.NewTool("acknowledge_alert",
+		mcp.WithDescription("Acknowledges an alert in OpsGenie."),
+		mcp.WithString("id",
+			mcp.Description("Alert id of the alert to acknowledge."),
+			mcp.Required(),
+		),
+		mcp.WithString("note",
+			mcp.Description("Optional note to add to the alert."),
+		),
+		mcp.WithString("user",
+			mcp.Description("Optional display name of the request owner."),
+		),
+		mcp.WithString("source",
+			mcp.Description("Optional display name of the request source."),
+		),
+	)
+	s.AddTool(acknowledgeAlertTool, h.AcknowledgeAlert)
 }
 
 // ListAlerts retrieves alerts from OpsGenie based on the provided search query.
@@ -195,5 +213,32 @@ func (h *opsgenieHandler) GetAlert(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	// Return the serialized alert as a text result
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// AcknowledgeAlert acknowledges an OpsGenie alert.
+// This method implements the MCP tool handler interface for the 'acknowledge_alert' tool.
+func (h *opsgenieHandler) AcknowledgeAlert(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract parameters
+	id := request.GetString("id", "")
+	if id == "" {
+		return mcp.NewToolResultError("the 'id' parameter is required"), nil
+	}
+	note := request.GetString("note", "")
+	user := request.GetString("user", "")
+	source := request.GetString("source", "mcp-opsgenie")
+
+	// Acknowledge the alert
+	result, err := h.alertClient.AcknowledgeAlert(ctx, id, user, note, source)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to acknowledge alert with ID '%s': %v", id, err)), nil
+	}
+
+	// Serialize the result to JSON
+	data, err := json.Marshal(result)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result to JSON: %v", err)), nil
+	}
+
 	return mcp.NewToolResultText(string(data)), nil
 }
