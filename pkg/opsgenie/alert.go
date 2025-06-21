@@ -122,3 +122,30 @@ func (a *AlertClient) ListAlerts(ctx context.Context, query string) ([]alert.Ale
 
 	return alerts, nil
 }
+
+// GetAlert retrieves a single alert from OpsGenie by its ID.
+//
+// Parameters:
+//   - ctx: Context for request cancellation and timeout control
+//   - id: The unique identifier of the alert to retrieve
+//
+// Returns:
+//   - *alert.GetAlertResult: The alert details
+//   - error: An error if the API request fails
+func (a *AlertClient) GetAlert(ctx context.Context, id string) (*alert.GetAlertResult, error) {
+	slog.Info("fetching alert", "id", id)
+
+	getRequest := &alert.GetAlertRequest{
+		IdentifierValue: id,
+		IdentifierType:  alert.ALERTID,
+	}
+
+	response, err := a.Client.Get(ctx, getRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get alert with ID %s: %w", id, err)
+	}
+
+	slog.Info("fetched alert", "id", response.Id)
+
+	return response, nil
+}
