@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 // listAlertQueryDescription contains comprehensive documentation for OpsGenie alert search queries.
@@ -111,6 +112,17 @@ source, entity, tag, actions, owner, teams, acknowledgedBy, closedBy, recipients
 4. Use parentheses to group complex conditions
 5. Remember that wildcards only work at the end of words
 6. Status field only accepts "open" or "closed" as values`
+
+func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
+	// Define the list_alerts tooListAlertsmprehensive documentation
+	tool := mcp.NewTool("list_alerts",
+		mcp.WithDescription("Retrieve a list of alerts from OpsGenie"),
+		mcp.WithString("query",
+			mcp.Description(listAlertQueryDescription),
+		),
+	)
+	s.AddTool(tool, h.ListAlerts)
+}
 
 // ListAlerts retrieves alerts from OpsGenie based on the provided search query.
 // This method implements the MCP tool handler interface for the 'list_alerts' tool.

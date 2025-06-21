@@ -5,7 +5,6 @@ package mcp
 import (
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/giantswarm/mcp-opsgenie/pkg/opsgenie"
@@ -38,16 +37,7 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 		alertClient: alertClient,
 	}
 
-	// Define the list_alerts tooListAlertsmprehensive documentation
-	tool := mcp.NewTool("list_alerts",
-		mcp.WithDescription("Retrieve a list of alerts from OpsGenie"),
-		mcp.WithString("query",
-			mcp.Description(listAlertQueryDescription),
-		),
-	)
-
-	// Register the tool with the MCP server
-	s.AddTool(tool, handler.ListAlerts)
+	handler.registerAlertTools(s)
 
 	return nil
 }
