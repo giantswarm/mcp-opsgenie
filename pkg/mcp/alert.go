@@ -8,9 +8,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-
-	"github.com/giantswarm/mcp-opsgenie/pkg/opsgenie"
 )
 
 // listAlertQueryDescription contains comprehensive documentation for OpsGenie alert search queries.
@@ -114,47 +111,6 @@ source, entity, tag, actions, owner, teams, acknowledgedBy, closedBy, recipients
 4. Use parentheses to group complex conditions
 5. Remember that wildcards only work at the end of words
 6. Status field only accepts "open" or "closed" as values`
-
-// opsgenieHandler handles MCP tool requests for OpsGenie operations.
-// It encapsulates the OpsGenie alert client and provides methods to interact with alerts.
-type opsgenieHandler struct {
-	alertClient *opsgenie.AlertClient
-}
-
-// RegisterOpsGenieHandler registers the OpsGenie MCP tools with the provided MCP server.
-// It creates an alert client using the specified API URL and environment variable for authentication,
-// then registers the available tools (currently 'list_alerts') with the server.
-//
-// Parameters:
-//   - s: The MCP server instance to register tools with
-//   - apiUrl: The OpsGenie API URL endpoint
-//   - envVar: The name of the environment variable containing the OpsGenie API key
-//
-// Returns an error if the alert client cannot be created or if tool registration fails.
-func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
-	alertClient, err := opsgenie.NewAlertClient(apiUrl, envVar)
-	if err != nil {
-		return fmt.Errorf("failed to create OpsGenie alert client: %w", err)
-	}
-
-	// Initialize the handler with the alert client
-	handler := &opsgenieHandler{
-		alertClient: alertClient,
-	}
-
-	// Define the list_alerts tooListAlertsmprehensive documentation
-	tool := mcp.NewTool("list_alerts",
-		mcp.WithDescription("Retrieve a list of alerts from OpsGenie"),
-		mcp.WithString("query",
-			mcp.Description(listAlertQueryDescription),
-		),
-	)
-
-	// Register the tool with the MCP server
-	s.AddTool(tool, handler.ListAlerts)
-
-	return nil
-}
 
 // ListAlerts retrieves alerts from OpsGenie based on the provided search query.
 // This method implements the MCP tool handler interface for the 'list_alerts' tool.
