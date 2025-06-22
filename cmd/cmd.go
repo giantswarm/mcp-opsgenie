@@ -11,7 +11,7 @@ import (
 	"github.com/opsgenie/opsgenie-go-sdk-v2/client"
 	"github.com/spf13/cobra"
 
-	pkgmcp "github.com/giantswarm/mcp-opsgenie/pkg/mcp"
+	"github.com/giantswarm/mcp-opsgenie/pkg/mcp"
 )
 
 // cmd defines the root command for the MCP OpsGenie server
@@ -58,11 +58,10 @@ func Execute() {
 
 // runner is the main execution function that sets up logging, creates the MCP server,
 // registers the OpsGenie handler, and starts the stdio server
-func runner(c *cobra.Command, args []string) error {
+func runner(c *cobra.Command, args []string) (err error) {
 	// Set up logging - default to discard handler (no output)
 	logger := slog.DiscardHandler
 
-	var err error
 	// If a log file is specified, create/open it and use it for logging
 	if logFile != "" {
 		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -81,16 +80,17 @@ func runner(c *cobra.Command, args []string) error {
 	s := server.NewMCPServer(
 		name,
 		version,
-		server.WithToolCapabilities(false),
+		server.WithToolCapabilities(true),
+		server.WithPromptCapabilities(true),
 	)
 
 	// Register the OpsGenie handler with the MCP server
-	err = pkgmcp.RegisterOpsGenieHandler(s, apiURL, envVar)
+	err = mcp.RegisterOpsGenieHandler(s, apiURL, envVar)
 	if err != nil {
 		return err
 	}
 
-	slog.Info("MCP server initialized successfully, waiting for client connections...")
+	slog.Info("Initialized MCP server successfully, waiting for client connections...")
 
 	// Start the stdio server to handle MCP protocol communication
 	err = server.ServeStdio(s)
