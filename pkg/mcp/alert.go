@@ -122,6 +122,51 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 		),
 	)
 	s.AddTool(tool, h.ListAlerts)
+
+	getAlertTool := mcp.NewTool("get_alert",
+		mcp.WithDescription("Retrieves a single alert from OpsGenie using its ID, alias, or tiny ID."),
+		mcp.WithString("id",
+			mcp.Description("Alert id of the alert to be retrieved."),
+			mcp.Required(),
+		),
+	)
+	s.AddTool(getAlertTool, h.GetAlert)
+
+	acknowledgeAlertTool := mcp.NewTool("acknowledge_alert",
+		mcp.WithDescription("Acknowledges an alert in OpsGenie."),
+		mcp.WithString("id",
+			mcp.Description("Alert id of the alert to acknowledge."),
+			mcp.Required(),
+		),
+		mcp.WithString("note",
+			mcp.Description("Optional note to add to the alert."),
+		),
+		mcp.WithString("user",
+			mcp.Description("Optional display name of the request owner."),
+		),
+		mcp.WithString("source",
+			mcp.Description("Optional display name of the request source."),
+		),
+	)
+	s.AddTool(acknowledgeAlertTool, h.AcknowledgeAlert)
+
+	unacknowledgeAlertTool := mcp.NewTool("unacknowledge_alert",
+		mcp.WithDescription("Unacknowledges an alert in OpsGenie."),
+		mcp.WithString("id",
+			mcp.Description("Alert id of the alert to unacknowledge."),
+			mcp.Required(),
+		),
+		mcp.WithString("note",
+			mcp.Description("Optional note to add to the alert."),
+		),
+		mcp.WithString("user",
+			mcp.Description("Optional display name of the request owner."),
+		),
+		mcp.WithString("source",
+			mcp.Description("Optional display name of the request source."),
+		),
+	)
+	s.AddTool(unacknowledgeAlertTool, h.UnacknowledgeAlert)
 }
 
 // ListAlerts retrieves alerts from OpsGenie based on the provided search query.
@@ -152,5 +197,93 @@ func (h *opsgenieHandler) ListAlerts(ctx context.Context, request mcp.CallToolRe
 	}
 
 	// Return the serialized alerts as a text result
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// GetAlert retrieves a single OpsGenie alert by its ID.
+// This method implements the MCP tool handler interface for the 'get_alert' tool.
+//
+// Parameters:
+//   - ctx: The context for the request, used for cancellation and timeouts
+//   - request: The MCP tool call request containing the alert ID parameter
+//
+// Returns:
+//   - A CallToolResult containing the serialized alert data on success
+//   - A CallToolResult with error information on failure
+//   - An error is only returned for internal MCP framework issues (always nil in this implementation)
+func (h *opsgenieHandler) GetAlert(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract the alert ID parameter
+	id := request.GetString("id", "")
+	if id == "" {
+		return mcp.NewToolResultError("the 'id' parameter is required"), nil
+	}
+
+	// Fetch the alert from OpsGenie
+	alert, err := h.alertClient.GetAlert(ctx, id)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to retrieve alert with ID '%s' from OpsGenie: %v", id, err)), nil
+	}
+
+	// Serialize the alert to JSON for the MCP response
+	data, err := json.Marshal(alert)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize alert to JSON: %v", err)), nil
+	}
+
+	// Return the serialized alert as a text result
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// AcknowledgeAlert acknowledges an OpsGenie alert.
+// This method implements the MCP tool handler interface for the 'acknowledge_alert' tool.
+func (h *opsgenieHandler) AcknowledgeAlert(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract parameters
+	id := request.GetString("id", "")
+	if id == "" {
+		return mcp.NewToolResultError("the 'id' parameter is required"), nil
+	}
+	note := request.GetString("note", "")
+	user := request.GetString("user", "")
+	source := request.GetString("source", "mcp-opsgenie")
+
+	// Acknowledge the alert
+	result, err := h.alertClient.AcknowledgeAlert(ctx, id, user, note, source)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to acknowledge alert with ID '%s': %v", id, err)), nil
+	}
+
+	// Serialize the result to JSON
+	data, err := json.Marshal(result)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result to JSON: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(string(data)), nil
+}
+
+// UnacknowledgeAlert unacknowledges an OpsGenie alert.
+// This method implements the MCP tool handler interface for the 'unacknowledge_alert' tool.
+func (h *opsgenieHandler) UnacknowledgeAlert(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract parameters
+	id := request.GetString("id", "")
+	if id == "" {
+		return mcp.NewToolResultError("the 'id' parameter is required"), nil
+	}
+	note := request.GetString("note", "")
+	user := request.GetString("user", "")
+	source := request.GetString("source", "mcp-opsgenie")
+
+	// Unacknowledge the alert
+	result, err := h.alertClient.UnacknowledgeAlert(ctx, id, user, note, source)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to unacknowledge alert with ID '%s': %v", id, err)), nil
+	}
+
+	// Serialize the result to JSON
+	data, err := json.Marshal(result)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to serialize result to JSON: %v", err)), nil
+	}
+
 	return mcp.NewToolResultText(string(data)), nil
 }
