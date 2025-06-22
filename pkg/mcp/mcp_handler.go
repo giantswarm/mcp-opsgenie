@@ -15,6 +15,7 @@ import (
 type opsgenieHandler struct {
 	alertClient     *opsgenie.AlertClient
 	heartbeatClient *opsgenie.HeartbeatClient
+	teamClient      *opsgenie.TeamClient
 }
 
 // RegisterOpsGenieHandler registers the OpsGenie MCP tools with the provided MCP server.
@@ -38,14 +39,21 @@ func RegisterOpsGenieHandler(s *server.MCPServer, apiUrl, envVar string) error {
 		return fmt.Errorf("failed to create OpsGenie heartbeat client: %w", err)
 	}
 
+	teamClient, err := opsgenie.NewTeamClient(apiUrl, envVar)
+	if err != nil {
+		return fmt.Errorf("failed to create OpsGenie team client: %w", err)
+	}
+
 	// Initialize the handler with the alert client
 	handler := &opsgenieHandler{
 		alertClient:     alertClient,
 		heartbeatClient: heartbeatClient,
+		teamClient:      teamClient,
 	}
 
 	handler.registerAlertTools(s)
 	handler.registerHeartbeatTools(s)
+	handler.registerTeamTools(s)
 
 	return nil
 }
