@@ -1,6 +1,6 @@
 module github.com/giantswarm/mcp-opsgenie
 
-go 1.24.2
+go 1.24.4
 
 require (
 	github.com/mark3labs/mcp-go v0.32.0
