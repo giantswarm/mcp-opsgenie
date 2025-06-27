@@ -19,13 +19,16 @@ The OpsGenie MCP Server is a [Model Context Protocol (MCP)](https://github.com/m
 - **Team Management**: List and get details for teams.
 - **Heartbeat Monitoring**: List and get the status of heartbeats.
 - **Powerful Alert Filtering**: Utilize advanced search queries to filter alerts.
+- **Multi-Transport Support**: Connect via stdio, Server-Sent Events (SSE), or Streamable HTTP.
+- **Enhanced CLI**: Version management, self-update capability, and comprehensive help system.
 - **MCP Compliance**: Fully compatible with the Model Context Protocol for seamless integration.
 - **Secure Authentication**: Uses OpsGenie API tokens for secure access.
-- **Flexible Configuration**: Configurable API endpoints and logging options.
+- **Flexible Configuration**: Configurable API endpoints, transport options, and logging.
+- **Backwards Compatible**: Maintains compatibility with existing configurations and scripts.
 
 ## Prerequisites
 
-- Go 1.24.2 or later
+- Go 1.24.4 or later
 - An OpsGenie API token with appropriate permissions
 
 ## Installation
@@ -44,8 +47,136 @@ cd mcp-opsgenie
 go build -o mcp-opsgenie
 ```
 
+### Self-Update
+
+The server includes a built-in self-update mechanism:
+
+```bash
+mcp-opsgenie self-update
+```
 
 ## Configuration
+
+### Environment Variables
+
+Set your OpsGenie API token as an environment variable:
+
+```bash
+export OPSGENIE_TOKEN="your-opsgenie-api-token-here"
+```
+
+## Usage
+
+### CLI Commands
+
+The MCP server provides several commands:
+
+```bash
+$ mcp-opsgenie --help
+An MCP (Model Context Protocol) server that connects to OpsGenie's API.
+This server enables AI assistants and other MCP clients to interact with your OpsGenie
+instance through a standardized protocol.
+
+The server requires an OpsGenie API token to authenticate with the service.
+
+When run without subcommands, it starts the MCP server (equivalent to 'mcp-opsgenie serve').
+
+Usage:
+  mcp-opsgenie [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  self-update Update mcp-opsgenie to the latest version
+  serve       Start the MCP OpsGenie server
+  version     Print the version number of mcp-opsgenie
+
+Flags:
+      --api-url string            Base URL for the OpsGenie API endpoint (default "api.opsgenie.com")
+  -h, --help                      help for mcp-opsgenie
+      --http-addr string          HTTP server address (for sse and streamable-http transports) (default ":8080")
+      --http-endpoint string      HTTP endpoint path (for streamable-http transport) (default "/mcp")
+      --log-file string           Path to log file (logs is disabled if not specified)
+      --message-endpoint string   Message endpoint path (for sse transport) (default "/message")
+      --sse-endpoint string       SSE endpoint path (for sse transport) (default "/sse")
+      --token-env-var string      Name of environment variable containing your OpsGenie API token (default "OPSGENIE_TOKEN")
+      --transport string          Transport type: stdio, sse, or streamable-http (default "stdio")
+  -v, --version                   version for mcp-opsgenie
+
+Use "mcp-opsgenie [command] --help" for more information about a command.
+```
+
+### Basic Usage (Backwards Compatible)
+
+Start the MCP server with default settings using stdio transport:
+
+```bash
+# Both commands are equivalent and start the server
+mcp-opsgenie
+mcp-opsgenie serve
+```
+
+### Multi-Transport Support
+
+The server supports three transport types for different deployment scenarios:
+
+#### Standard I/O (Default)
+Best for MCP client integrations and development:
+
+```bash
+mcp-opsgenie serve --transport stdio
+```
+
+#### Server-Sent Events (SSE)
+Ideal for web applications and browser-based clients:
+
+```bash
+mcp-opsgenie serve --transport sse --http-addr :8080
+```
+
+#### Streamable HTTP
+Perfect for HTTP-based integrations and REST-like interactions:
+
+```bash
+mcp-opsgenie serve --transport streamable-http --http-addr :8080
+```
+
+### Advanced Configuration Examples
+
+```bash
+# Use a custom API endpoint
+mcp-opsgenie --api-url "https://api.eu.opsgenie.com"
+
+# Use a different environment variable for the token
+mcp-opsgenie --token-env-var "CUSTOM_OPSGENIE_TOKEN"
+
+# Enable logging to a file
+mcp-opsgenie --log-file "mcp-opsgenie.log"
+
+# Run with SSE transport on custom port with custom endpoints
+mcp-opsgenie serve \
+  --transport sse \
+  --http-addr :9090 \
+  --sse-endpoint /events \
+  --message-endpoint /messages
+
+# Run with streamable HTTP transport
+mcp-opsgenie serve \
+  --transport streamable-http \
+  --http-addr :8080 \
+  --http-endpoint /api/mcp
+```
+
+### Version Management
+
+```bash
+# Check current version
+mcp-opsgenie version
+mcp-opsgenie --version
+
+# Update to latest version
+mcp-opsgenie self-update
+```
 
 ## Integration with AI Assistants
 
@@ -58,6 +189,7 @@ This MCP server can be integrated with various AI assistants that support the Mo
 
 ### Example MCP Client Configuration
 
+#### Standard I/O Transport (Recommended)
 ```json
 {
   "servers": {
@@ -71,57 +203,28 @@ This MCP server can be integrated with various AI assistants that support the Mo
 }
 ```
 
-### Environment Variables
-
-Set your OpsGenie API token as an environment variable:
-
-```bash
-export OPSGENIE_TOKEN="your-opsgenie-api-token-here"
+#### SSE Transport
+```json
+{
+  "servers": {
+    "opsgenie": {
+      "url": "http://localhost:8080/sse",
+      "transport": "sse"
+    }
+  }
+}
 ```
 
-## Usage
-
-### Basic Usage
-
-Start the MCP server with default settings:
-
-```bash
-mcp-opsgenie
-```
-
-### Advanced Usage
-
-The server supports several command-line options:
-
-```bash
-$ mcp-opsgenie --help
-An MCP (Model Context Protocol) server that connects to OpsGenie's API.
-This server enables AI assistants and other MCP clients to interact with your OpsGenie
-instance through a standardized protocol.
-
-The server requires an OpsGenie API token to authenticate with the service.
-
-Usage:
-  mcp-opsgenie [flags]
-
-Flags:
-      --api-url string         Base URL for the OpsGenie API endpoint (default "api.opsgenie.com")
-  -h, --help                   help for mcp-opsgenie
-      --log-file string        Path to log file (logs is disabled if not specified)
-      --token-env-var string   Name of environment variable containing your OpsGenie API token (default "OPSGENIE_TOKEN")
-```
-
-### Custom Configuration Examples
-
-```bash
-# Use a custom API endpoint
-mcp-opsgenie --api-url "https://api.eu.opsgenie.com"
-
-# Use a different environment variable for the token
-mcp-opsgenie --token-env-var "CUSTOM_OPSGENIE_TOKEN"
-
-# Enable logging to a file
-mcp-opsgenie --log-file "mcp-opsgenie.log"
+#### Streamable HTTP Transport
+```json
+{
+  "servers": {
+    "opsgenie": {
+      "url": "http://localhost:8080/mcp",
+      "transport": "http"
+    }
+  }
+}
 ```
 
 ## Available Tools
@@ -184,3 +287,74 @@ Retrieves a single heartbeat from OpsGenie by its name.
 
 **Parameters:**
 - `name`: Name of the heartbeat to retrieve.
+
+## Deployment
+
+### Docker
+
+You can run the server in a Docker container:
+
+```dockerfile
+FROM golang:1.24.4-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o mcp-opsgenie
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /root/
+COPY --from=builder /app/mcp-opsgenie .
+EXPOSE 8080
+CMD ["./mcp-opsgenie", "serve", "--transport", "sse", "--http-addr", ":8080"]
+```
+
+### Systemd Service
+
+Create a systemd service for automatic startup:
+
+```ini
+[Unit]
+Description=OpsGenie MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=mcp
+ExecStart=/usr/local/bin/mcp-opsgenie serve --log-file /var/log/mcp-opsgenie.log
+Environment=OPSGENIE_TOKEN=your-token-here
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Development
+
+### Building
+
+```bash
+go build -v .
+```
+
+### Testing
+
+```bash
+make test
+```
+
+### Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to submit issues, feature requests, and pull requests.
+
+## License
+
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support and questions:
+
+- Create an issue in this repository
+- Check the [OpsGenie API documentation](https://docs.opsgenie.com/docs/api-overview)
+- Review the [Model Context Protocol specification](https://github.com/modelcontextprotocol)
