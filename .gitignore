@@ -1,1 +1,72 @@
+# Binary output
+/mcp-opsgenie
+dist/
+
+# Configuration files
+.mcp-opsgenie/config.yaml
+.cursor/mcp.json
+
+# Go specific
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Go modules
+go.sum
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE and editor files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependency directories (legacy Node.js, can be removed if not needed)
+node_modules/
+
+# Task files
+tasks.json
+tasks/
+
+# Build artifacts
 build/
+bin/ mcp-opsgenie
