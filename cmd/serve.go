@@ -9,12 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mark3labs/mcp-go/server"
+	"github.com/opsgenie/opsgenie-go-sdk-v2/client"
 	"github.com/spf13/cobra"
 
 	"github.com/giantswarm/mcp-opsgenie/pkg/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	mcpserver "github.com/mark3labs/mcp-go/server"
-	"github.com/opsgenie/opsgenie-go-sdk-v2/client"
 )
 
 // newServeCmd creates the Cobra command for starting the MCP server.
@@ -121,12 +120,12 @@ func runServeWithVersion(apiURL, envVar, logFile, transport, httpAddr, sseEndpoi
 }
 
 // runStdioServer runs the server with STDIO transport
-func runStdioServer(mcpSrv *mcpserver.MCPServer) error {
+func runStdioServer(mcpSrv *server.MCPServer) error {
 	// Start the server in a goroutine so we can handle shutdown signals
 	serverDone := make(chan error, 1)
 	go func() {
 		defer close(serverDone)
-		if err := mcpserver.ServeStdio(mcpSrv); err != nil {
+		if err := server.ServeStdio(mcpSrv); err != nil {
 			serverDone <- err
 		}
 	}()
@@ -151,11 +150,11 @@ func runStdioServer(mcpSrv *mcpserver.MCPServer) error {
 }
 
 // runSSEServer runs the server with SSE transport
-func runSSEServer(mcpSrv *mcpserver.MCPServer, addr, sseEndpoint, messageEndpoint string, ctx context.Context) error {
+func runSSEServer(mcpSrv *server.MCPServer, addr, sseEndpoint, messageEndpoint string, ctx context.Context) error {
 	// Create SSE server with custom endpoints
-	sseServer := mcpserver.NewSSEServer(mcpSrv,
-		mcpserver.WithSSEEndpoint(sseEndpoint),
-		mcpserver.WithMessageEndpoint(messageEndpoint),
+	sseServer := server.NewSSEServer(mcpSrv,
+		server.WithSSEEndpoint(sseEndpoint),
+		server.WithMessageEndpoint(messageEndpoint),
 	)
 
 	fmt.Printf("SSE server starting on %s\n", addr)
@@ -193,10 +192,10 @@ func runSSEServer(mcpSrv *mcpserver.MCPServer, addr, sseEndpoint, messageEndpoin
 }
 
 // runStreamableHTTPServer runs the server with Streamable HTTP transport
-func runStreamableHTTPServer(mcpSrv *mcpserver.MCPServer, addr, endpoint string, ctx context.Context) error {
+func runStreamableHTTPServer(mcpSrv *server.MCPServer, addr, endpoint string, ctx context.Context) error {
 	// Create Streamable HTTP server with custom endpoint
-	httpServer := mcpserver.NewStreamableHTTPServer(mcpSrv,
-		mcpserver.WithEndpointPath(endpoint),
+	httpServer := server.NewStreamableHTTPServer(mcpSrv,
+		server.WithEndpointPath(endpoint),
 	)
 
 	fmt.Printf("Streamable HTTP server starting on %s\n", addr)
