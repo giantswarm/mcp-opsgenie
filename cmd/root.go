@@ -3,7 +3,23 @@ package cmd
 import (
 	"os"
 
+	"github.com/opsgenie/opsgenie-go-sdk-v2/client"
 	"github.com/spf13/cobra"
+)
+
+// Variables for root command flags (same as serve command for backwards compatibility)
+var (
+	// OpsGenie configuration
+	rootApiURL  string
+	rootEnvVar  string
+	rootLogFile string
+
+	// Transport options
+	rootTransport       string
+	rootHttpAddr        string
+	rootSseEndpoint     string
+	rootMessageEndpoint string
+	rootHttpEndpoint    string
 )
 
 // rootCmd represents the base command for the mcp-opsgenie application.
@@ -37,9 +53,14 @@ func Execute() {
 	// This is used when the --version flag is invoked.
 	rootCmd.SetVersionTemplate(`{{printf "mcp-opsgenie version %s\n" .Version}}`)
 
-	// If no subcommand is provided, run the serve command by default
+	// Check if no subcommand was provided and run serve logic (backwards compatibility)
 	if len(os.Args) == 1 {
-		os.Args = append(os.Args, "serve")
+		// Run serve logic directly with root command flag values
+		err := runServeWithVersion(rootApiURL, rootEnvVar, rootLogFile, rootTransport, rootHttpAddr, rootSseEndpoint, rootMessageEndpoint, rootHttpEndpoint, rootCmd.Version)
+		if err != nil {
+			os.Exit(1)
+		}
+		return
 	}
 
 	err := rootCmd.Execute()
@@ -51,15 +72,22 @@ func Execute() {
 }
 
 // init is a special Go function that is executed when the package is initialized.
-// It is used here to add subcommands to the root command.
+// It is used here to add subcommands to the root command and define flags.
 func init() {
+	// Add subcommands
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newSelfUpdateCmd())
 	rootCmd.AddCommand(newServeCmd())
 
-	// Example of how to define persistent flags (global for the application):
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/mcp-opsgenie/config.yaml)")
+	// Add flags to root command for backwards compatibility (same as serve command)
+	rootCmd.Flags().StringVar(&rootApiURL, "api-url", string(client.API_URL), "Base URL for the OpsGenie API endpoint")
+	rootCmd.Flags().StringVar(&rootEnvVar, "token-env-var", "OPSGENIE_TOKEN", "Name of environment variable containing your OpsGenie API token")
+	rootCmd.Flags().StringVar(&rootLogFile, "log-file", "", "Path to log file (logs is disabled if not specified)")
 
-	// Example of how to define local flags (only run when this action is called directly):
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Transport flags
+	rootCmd.Flags().StringVar(&rootTransport, "transport", "stdio", "Transport type: stdio, sse, or streamable-http")
+	rootCmd.Flags().StringVar(&rootHttpAddr, "http-addr", ":8080", "HTTP server address (for sse and streamable-http transports)")
+	rootCmd.Flags().StringVar(&rootSseEndpoint, "sse-endpoint", "/sse", "SSE endpoint path (for sse transport)")
+	rootCmd.Flags().StringVar(&rootMessageEndpoint, "message-endpoint", "/message", "Message endpoint path (for sse transport)")
+	rootCmd.Flags().StringVar(&rootHttpEndpoint, "http-endpoint", "/mcp", "HTTP endpoint path (for streamable-http transport)")
 }

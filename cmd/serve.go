@@ -46,7 +46,7 @@ Supports multiple transport types:
 
 The server requires an OpsGenie API token to authenticate with the service.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServe(apiURL, envVar, logFile, transport, httpAddr, sseEndpoint, messageEndpoint, httpEndpoint)
+			return runServeWithVersion(apiURL, envVar, logFile, transport, httpAddr, sseEndpoint, messageEndpoint, httpEndpoint, cmd.Root().Version)
 		},
 	}
 
@@ -65,8 +65,8 @@ The server requires an OpsGenie API token to authenticate with the service.`,
 	return cmd
 }
 
-// runServe contains the main server logic with support for multiple transports
-func runServe(apiURL, envVar, logFile, transport, httpAddr, sseEndpoint, messageEndpoint, httpEndpoint string) error {
+// runServeWithVersion contains the main server logic with support for multiple transports and explicit version
+func runServeWithVersion(apiURL, envVar, logFile, transport, httpAddr, sseEndpoint, messageEndpoint, httpEndpoint, version string) error {
 	// Setup graceful shutdown - listen for both SIGINT and SIGTERM
 	shutdownCtx, cancel := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
@@ -87,12 +87,12 @@ func runServe(apiURL, envVar, logFile, transport, httpAddr, sseEndpoint, message
 
 	// Set the default logger for the application
 	slog.SetDefault(slog.New(logger))
-	slog.Info("Starting MCP OpsGenie server", "version", rootCmd.Version, "api_url", apiURL)
+	slog.Info("Starting MCP OpsGenie server", "version", version, "api_url", apiURL)
 
 	// Create a new MCP server instance
 	mcpSrv := server.NewMCPServer(
 		"mcp-opsgenie",
-		rootCmd.Version, // Use version from root command
+		version, // Use version parameter instead of rootCmd.Version
 		server.WithToolCapabilities(true),
 		server.WithPromptCapabilities(true),
 	)
