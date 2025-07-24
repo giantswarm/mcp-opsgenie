@@ -14,7 +14,7 @@ import (
 // listAlertQueryDescription contains comprehensive documentation for OpsGenie alert search queries.
 // This documentation is sourced from the official OpsGenie documentation:
 // https://support.atlassian.com/opsgenie/docs/search-queries-for-alerts/
-const listAlertQueryDescription = `Search query for filtering alerts.
+const listAlertQueryDescription = `Search query for filtering alerts. (defaults to "status:open" if not provided)
 
 ## Field reference for alert search
 
@@ -197,8 +197,8 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 //   - A CallToolResult with error information on failure
 //   - An error is only returned for internal MCP framework issues (always nil in this implementation)
 func (h *opsgenieHandler) ListAlerts(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Extract the query parameter (defaults to empty string if not provided)
-	query := request.GetString("query", "")
+	// Extract the query parameter (defaults to status:open if not provided)
+	query := request.GetString("query", "status:open")
 
 	// Fetch alerts from OpsGenie using the provided query
 	alerts, err := h.alertClient.ListAlerts(ctx, query)
