@@ -21,6 +21,10 @@ func (h *opsgenieHandler) registerHeartbeatTools(s *server.MCPServer) {
 			mcp.Description("Name of the heartbeat to retrieve."),
 			mcp.Required(),
 		),
+
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(getHeartbeatTool, h.GetHeartbeat)
 }
