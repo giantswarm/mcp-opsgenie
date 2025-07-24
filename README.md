@@ -31,6 +31,18 @@ The OpsGenie MCP Server is a [Model Context Protocol (MCP)](https://github.com/m
 - Go 1.24.4 or later
 - An OpsGenie API token with appropriate permissions
 
+|Tool|OpsGenie Permission|
+|-----|----------|
+|`list_alerts`|Read|
+|`get_alert`|Read|
+|`acknowledge_alert`|Update|
+|`unacknowledge_alert`|Update|
+|`list_heartbeats`|Read|
+|`get_heartbeat`|Read|
+|`list_teams`|Read|
+|`get_team`|Read|
+
+
 ## Installation
 
 ### Using Go Install

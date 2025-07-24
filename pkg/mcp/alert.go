@@ -120,6 +120,10 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 		mcp.WithString("query",
 			mcp.Description(listAlertQueryDescription),
 		),
+
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(tool, h.ListAlerts)
 
@@ -129,6 +133,10 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 			mcp.Description("Alert id of the alert to be retrieved."),
 			mcp.Required(),
 		),
+
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(getAlertTool, h.GetAlert)
 
@@ -147,6 +155,10 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 		mcp.WithString("source",
 			mcp.Description("Optional display name of the request source."),
 		),
+
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(acknowledgeAlertTool, h.AcknowledgeAlert)
 
@@ -165,6 +177,10 @@ func (h *opsgenieHandler) registerAlertTools(s *server.MCPServer) {
 		mcp.WithString("source",
 			mcp.Description("Optional display name of the request source."),
 		),
+
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(unacknowledgeAlertTool, h.UnacknowledgeAlert)
 }

@@ -24,6 +24,10 @@ func (h *opsgenieHandler) registerTeamTools(s *server.MCPServer) {
 		mcp.WithString("identifier_type",
 			mcp.Description("Type of the identifier. Possible values are 'id' and 'name'. Defaults to 'id'."),
 		),
+
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
 	)
 	s.AddTool(getTeamTool, h.GetTeam)
 }
