@@ -1,2 +1,2 @@
-# Affects all versions of archiver which is required by vault.
-CVE-2024-6104 until=2025-09-08
+# pkg:golang/github.com/ulikunitz/xz@v0.5.14
+CVE-2025-58058 until=2026-01-20 # CWE-770: Allocation of Resources Without Limits or Throttling
