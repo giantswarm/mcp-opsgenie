@@ -1,2 +1,7 @@
 # pkg:golang/github.com/ulikunitz/xz@v0.5.14
 CVE-2025-58058 until=2026-01-20 # CWE-770: Allocation of Resources Without Limits or Throttling
+
+# pkg:golang/golang.org/x/crypto@v0.41.0
+CVE-2025-47913 until=2026-01-20 # CWE-770: Allocation of Resources Without Limits or Throttling
+CVE-2025-47914 until=2026-01-20 # CWE-125: Out-of-bounds Read
+CVE-2025-58181 until=2026-01-20 # CWE-770: Allocation of Resources Without Limits or Throttling
