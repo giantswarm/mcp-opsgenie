@@ -3,7 +3,7 @@ module github.com/giantswarm/mcp-opsgenie
 go 1.24.6
 
 require (
-	github.com/creativeprojects/go-selfupdate v1.5.1
+	github.com/creativeprojects/go-selfupdate v1.5.2
 	github.com/mark3labs/mcp-go v0.43.2
 	github.com/opsgenie/opsgenie-go-sdk-v2 v1.2.23
 	github.com/sirupsen/logrus v1.9.3
