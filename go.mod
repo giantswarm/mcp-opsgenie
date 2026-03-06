@@ -2,7 +2,7 @@ module github.com/giantswarm/mcp-opsgenie
 
 go 1.24.11
 
-toolchain go1.26.0
+toolchain go1.26.1
 
 require (
 	github.com/creativeprojects/go-selfupdate v1.5.2
