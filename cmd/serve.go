@@ -5,15 +5,30 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/giantswarm/mcp-toolkit/health"
+	"github.com/giantswarm/mcp-toolkit/httpx"
+	"github.com/giantswarm/mcp-toolkit/logging"
+	"github.com/giantswarm/mcp-toolkit/middleware/responsecap"
+	"github.com/giantswarm/mcp-toolkit/middleware/timeout"
+	"github.com/giantswarm/mcp-toolkit/tracing"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/opsgenie/opsgenie-go-sdk-v2/client"
 	"github.com/spf13/cobra"
 
 	"github.com/giantswarm/mcp-opsgenie/pkg/mcp"
+)
+
+const (
+	serverName              = "mcp-opsgenie"
+	transportStdio          = "stdio"
+	transportSSE            = "sse"
+	transportStreamableHTTP = "streamable-http"
 )
 
 // newServeCmd creates the Cobra command for starting the MCP server.
@@ -49,13 +64,12 @@ The server requires an OpsGenie API token to authenticate with the service.`,
 		},
 	}
 
-	// Add flags for OpsGenie configuration
 	cmd.Flags().StringVar(&apiURL, "api-url", string(client.API_URL), "Base URL for the OpsGenie API endpoint")
 	cmd.Flags().StringVar(&envVar, "token-env-var", "OPSGENIE_TOKEN", "Name of environment variable containing your OpsGenie API token")
-	cmd.Flags().StringVar(&logFile, "log-file", "", "Path to log file (logs is disabled if not specified)")
+	cmd.Flags().StringVar(&logFile, "log-file", "", "Path to log file. If empty: logs go to stderr for HTTP transports, are discarded for stdio.")
 
-	// Transport flags
-	cmd.Flags().StringVar(&transport, "transport", "stdio", "Transport type: stdio, sse, or streamable-http")
+	cmd.Flags().StringVar(&transport, "transport", transportStdio,
+		fmt.Sprintf("Transport type: %s, %s, or %s", transportStdio, transportSSE, transportStreamableHTTP))
 	cmd.Flags().StringVar(&httpAddr, "http-addr", ":8080", "HTTP server address (for sse and streamable-http transports)")
 	cmd.Flags().StringVar(&sseEndpoint, "sse-endpoint", "/sse", "SSE endpoint path (for sse transport)")
 	cmd.Flags().StringVar(&messageEndpoint, "message-endpoint", "/message", "Message endpoint path (for sse transport)")
@@ -66,167 +80,134 @@ The server requires an OpsGenie API token to authenticate with the service.`,
 
 // runServeWithVersion contains the main server logic with support for multiple transports and explicit version
 func runServeWithVersion(apiURL, envVar, logFile, transport, httpAddr, sseEndpoint, messageEndpoint, httpEndpoint, version string) error {
-	// Setup graceful shutdown - listen for both SIGINT and SIGTERM
 	shutdownCtx, cancel := signal.NotifyContext(context.Background(),
 		os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// Set up logging - default to discard handler (no output)
-	logger := slog.DiscardHandler
-
-	// If a log file is specified, create/open it and use it for logging
-	if logFile != "" {
-		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		logger = slog.NewTextHandler(file, nil)
-	}
-
-	// Set the default logger for the application
-	slog.SetDefault(slog.New(logger))
-	slog.Info("Starting MCP OpsGenie server", "version", version, "api_url", apiURL)
-
-	// Create a new MCP server instance
-	mcpSrv := server.NewMCPServer(
-		"mcp-opsgenie",
-		version, // Use version parameter instead of rootCmd.Version
-		server.WithToolCapabilities(true),
-		server.WithPromptCapabilities(true),
-	)
-
-	// Register the OpsGenie handler with the MCP server
-	err := mcp.RegisterOpsGenieHandler(mcpSrv, apiURL, envVar)
+	logger, closeLog, err := buildLogger(transport, logFile)
 	if err != nil {
 		return err
 	}
+	defer closeLog()
+	slog.SetDefault(logger)
 
-	slog.Info("Initialized MCP server successfully, waiting for client connections...")
+	logger.Info("starting MCP OpsGenie server", "version", version, "api_url", apiURL, "transport", transport)
 
-	fmt.Printf("Starting MCP OpsGenie server with %s transport...\n", transport)
+	shutdownOTEL, err := tracing.Init(shutdownCtx, serverName, version)
+	if err != nil {
+		logger.Warn("otel init failed; continuing without tracing", "error", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = shutdownOTEL(ctx)
+		}()
+	}
 
-	// Start the appropriate server based on transport type
+	mcpSrv := server.NewMCPServer(
+		serverName,
+		version,
+		server.WithToolCapabilities(true),
+		server.WithPromptCapabilities(true),
+		server.WithToolHandlerMiddleware(timeout.New(30*time.Second)),
+		server.WithToolHandlerMiddleware(responsecap.New(responsecap.Options{})),
+	)
+
+	if err := mcp.RegisterOpsGenieHandler(mcpSrv, apiURL, envVar); err != nil {
+		return err
+	}
+
+	logger.Info("MCP server initialized; awaiting client connections")
+
+	hc := health.New()
+
 	switch transport {
-	case "stdio":
-		return runStdioServer(mcpSrv)
-	case "sse":
-		return runSSEServer(mcpSrv, httpAddr, sseEndpoint, messageEndpoint, shutdownCtx)
-	case "streamable-http":
-		return runStreamableHTTPServer(mcpSrv, httpAddr, httpEndpoint, shutdownCtx)
+	case transportStdio:
+		return runStdioServer(mcpSrv, logger)
+	case transportSSE:
+		hc.SetReady(true)
+		return runSSEServer(shutdownCtx, mcpSrv, hc, httpAddr, sseEndpoint, messageEndpoint, logger)
+	case transportStreamableHTTP:
+		hc.SetReady(true)
+		return runStreamableHTTPServer(shutdownCtx, mcpSrv, hc, httpAddr, httpEndpoint, logger)
 	default:
-		return fmt.Errorf("unsupported transport type: %s (supported: stdio, sse, streamable-http)", transport)
+		return fmt.Errorf("unsupported transport type: %s (supported: %s, %s, %s)",
+			transport, transportStdio, transportSSE, transportStreamableHTTP)
 	}
 }
 
-// runStdioServer runs the server with STDIO transport
-func runStdioServer(mcpSrv *server.MCPServer) error {
-	// Start the server in a goroutine so we can handle shutdown signals
-	serverDone := make(chan error, 1)
-	go func() {
-		defer close(serverDone)
-		if err := server.ServeStdio(mcpSrv); err != nil {
-			serverDone <- err
-		}
-	}()
-
-	// Wait for server completion
-	select {
-	case err := <-serverDone:
+// buildLogger returns the slog logger and a close function. For stdio with
+// no --log-file, logs are discarded (stdio drives MCP protocol on
+// stdin/stdout; stderr is safe but quiet by default for parity with the
+// pre-toolkit behaviour). For HTTP transports, logs default to stderr via
+// the toolkit's logging.New (JSON in-cluster, text locally). When
+// --log-file is set it overrides both, writing to that file.
+func buildLogger(transport, logFile string) (*slog.Logger, func(), error) {
+	noop := func() {}
+	if logFile != "" {
+		f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err != nil {
-			// If the server was stopped by user (context canceled), exit gracefully
-			if errors.Is(err, context.Canceled) {
-				slog.Info("MCP OpsGenie server shutdown requested by user")
-				return nil
-			}
-			return fmt.Errorf("server stopped with error: %w", err)
-		} else {
-			fmt.Println("Server stopped normally")
+			return nil, noop, err
 		}
+		return logging.New(logging.Options{Output: f}), func() { _ = f.Close() }, nil
 	}
+	if transport == transportStdio {
+		return slog.New(slog.DiscardHandler), noop, nil
+	}
+	return logging.New(logging.Options{}), noop, nil
+}
 
-	fmt.Println("Server gracefully stopped")
+// runStdioServer runs the server with STDIO transport.
+func runStdioServer(mcpSrv *server.MCPServer, logger *slog.Logger) error {
+	if err := server.ServeStdio(mcpSrv); err != nil {
+		if errors.Is(err, context.Canceled) {
+			logger.Info("MCP OpsGenie server shutdown requested")
+			return nil
+		}
+		return fmt.Errorf("server stopped with error: %w", err)
+	}
+	logger.Info("server stopped normally")
 	return nil
 }
 
-// runSSEServer runs the server with SSE transport
-func runSSEServer(mcpSrv *server.MCPServer, addr, sseEndpoint, messageEndpoint string, ctx context.Context) error {
-	// Create SSE server with custom endpoints
+// runSSEServer runs the SSE transport on its own *http.Server with /healthz
+// and /readyz mounted on the same mux.
+func runSSEServer(ctx context.Context, mcpSrv *server.MCPServer, hc *health.Health, addr, sseEndpoint, messageEndpoint string, logger *slog.Logger) error {
 	sseServer := server.NewSSEServer(mcpSrv,
 		server.WithSSEEndpoint(sseEndpoint),
 		server.WithMessageEndpoint(messageEndpoint),
 	)
+	mux := http.NewServeMux()
+	mux.Handle(sseEndpoint, sseServer)
+	mux.Handle(messageEndpoint, sseServer)
+	hc.Mount(mux)
 
-	fmt.Printf("SSE server starting on %s\n", addr)
-	fmt.Printf("  SSE endpoint: %s\n", sseEndpoint)
-	fmt.Printf("  Message endpoint: %s\n", messageEndpoint)
-
-	// Start server in goroutine
-	serverDone := make(chan error, 1)
-	go func() {
-		defer close(serverDone)
-		if err := sseServer.Start(addr); err != nil {
-			serverDone <- err
-		}
-	}()
-
-	// Wait for either shutdown signal or server completion
-	select {
-	case <-ctx.Done():
-		fmt.Println("Shutdown signal received, stopping SSE server...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30)
-		defer cancel()
-		if err := sseServer.Shutdown(shutdownCtx); err != nil {
-			return fmt.Errorf("error shutting down SSE server: %w", err)
-		}
-	case err := <-serverDone:
-		if err != nil {
-			return fmt.Errorf("SSE server stopped with error: %w", err)
-		} else {
-			fmt.Println("SSE server stopped normally")
-		}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
-
-	fmt.Println("SSE server gracefully stopped")
-	return nil
+	logger.Info("SSE server starting", "addr", addr, "sse", sseEndpoint, "message", messageEndpoint)
+	return httpx.Run(ctx, srv, 30*time.Second)
 }
 
-// runStreamableHTTPServer runs the server with Streamable HTTP transport
-func runStreamableHTTPServer(mcpSrv *server.MCPServer, addr, endpoint string, ctx context.Context) error {
-	// Create Streamable HTTP server with custom endpoint
-	httpServer := server.NewStreamableHTTPServer(mcpSrv,
+// runStreamableHTTPServer runs the streamable-HTTP transport on its own
+// *http.Server with /healthz and /readyz mounted on the same mux.
+func runStreamableHTTPServer(ctx context.Context, mcpSrv *server.MCPServer, hc *health.Health, addr, endpoint string, logger *slog.Logger) error {
+	streamServer := server.NewStreamableHTTPServer(mcpSrv,
 		server.WithEndpointPath(endpoint),
 	)
+	mux := http.NewServeMux()
+	mux.Handle(endpoint, streamServer)
+	hc.Mount(mux)
 
-	fmt.Printf("Streamable HTTP server starting on %s\n", addr)
-	fmt.Printf("  HTTP endpoint: %s\n", endpoint)
-
-	// Start server in goroutine
-	serverDone := make(chan error, 1)
-	go func() {
-		defer close(serverDone)
-		if err := httpServer.Start(addr); err != nil {
-			serverDone <- err
-		}
-	}()
-
-	// Wait for either shutdown signal or server completion
-	select {
-	case <-ctx.Done():
-		fmt.Println("Shutdown signal received, stopping HTTP server...")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30)
-		defer cancel()
-		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			return fmt.Errorf("error shutting down HTTP server: %w", err)
-		}
-	case err := <-serverDone:
-		if err != nil {
-			return fmt.Errorf("HTTP server stopped with error: %w", err)
-		} else {
-			fmt.Println("HTTP server stopped normally")
-		}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
-
-	fmt.Println("HTTP server gracefully stopped")
-	return nil
+	logger.Info("streamable-HTTP server starting", "addr", addr, "endpoint", endpoint)
+	return httpx.Run(ctx, srv, 30*time.Second)
 }
